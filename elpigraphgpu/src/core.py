@@ -101,6 +101,7 @@ def PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, Squa
         dists[ind] = TrimmingRadius**2
         
     return partition, dists, u, l, d, partition2nd, partition3rd
+    return cp.asnumpy(partition), cp.asnumpy(dists), u, l, cp.asnumpy(d), cp.asnumpy(partition2nd), cp.asnumpy(partition3rd)
 
 
 
