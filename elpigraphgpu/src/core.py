@@ -58,6 +58,9 @@ def PartitionData(Xcp, NodePositions, MaxBlockSize,SquaredXcp,
 
 def PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, SquaredXcp,
                   TrimmingRadius=float('inf')):
+    
+    NodePositionscp = cp.asarray(NodePositions)
+
     n = Xcp.shape[0]
     idx_all = cp.arange(n)
     partition = cp.zeros((n, 1), dtype=int)
@@ -68,7 +71,7 @@ def PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, Squa
     u = cp.zeros((n, 1))
     l = cp.zeros((n, 1))
     # Calculate squared length of centroids
-    cent = NodePositions.T
+    cent = NodePositionscp.T
     centrLength = (cent**2).sum(axis=0)
     # Process partitioning without trimming
     for i in range(0, n, MaxBlockSize):
