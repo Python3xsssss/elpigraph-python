@@ -1,6 +1,7 @@
 import numpy as np
 #import multiprocessing as mp
-from .core import PartitionData, PrimitiveElasticGraphEmbedment, DecodeElasticMatrix2
+from .core import PartitionData, PartitionData_and_get_Hamerley_bounds, PrimitiveElasticGraphEmbedment, PrimitiveElasticGraphEmbedment_feed_partition_dists, DecodeElasticMatrix2
+from .distutils import sum_squares_2d_array_along_axis1
 
 def proxy(Dict):
     return PrimitiveElasticGraphEmbedment_lockGPU(**Dict)
