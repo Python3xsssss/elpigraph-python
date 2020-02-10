@@ -430,13 +430,15 @@ def ApplyOptimalGraphGrammarOperation(X,
     NodePositionsArrayAll = []
     ElasticMatricesAll = []
     AdjustVectAll = []
+    opTypesAll = []
 
     if SquaredX is None:
         SquaredX = (X**2).sum(axis=1,keepdims=1)
 
-    partition, _ = PartitionData(Xcp, NodePositions, MaxBlockSize, SquaredXcp,
-                                 TrimmingRadius)
-    
+    #partition, _ = PartitionData(Xcp, NodePositions, MaxBlockSize, SquaredXcp,
+    #                             TrimmingRadius)
+
+    partition, dists, u, l, distmat, partition2nd, partition3rd = PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, SquaredXcp,TrimmingRadius)
 
     for i in range(len(opTypes)):
         if verbose:
@@ -455,7 +457,8 @@ def ApplyOptimalGraphGrammarOperation(X,
         NodePositionsArrayAll.extend(NodePositionsArray)
         ElasticMatricesAll.extend(ElasticMatrices)
         AdjustVectAll.extend(AdjustVectArray)
-        
+        opTypesAll.extend([(opTypes[i],j) for j in range(len(NodePositionsArray))])
+
     if verbose:
         print("Optimizing graphs")
 
@@ -595,17 +598,29 @@ def ApplyOptimalGraphGrammarOperation(X,
         for i in Valid_configurations:    
 
             # TODO add pointweights ?
-            nodep, ElasticEnergy, part, dist, mse, ep, rp = PrimitiveElasticGraphEmbedment(X,
-                                                   NodePositionsArrayAll[i],
-                                                   ElasticMatricesAll[i], MaxNumberOfIterations, eps,
-                                                   Mode=Mode, FinalEnergy=FinalEnergy,
-                                                   alpha=alpha,beta=beta,prob=EmbPointProb,
-                                                   DisplayWarnings=DisplayWarnings,
-                                                   PointWeights=None,
-                                                   MaxBlockSize=MaxBlockSize,
-                                                   verbose=False,
-                                                   TrimmingRadius=TrimmingRadius, SquaredX=SquaredX,
-                                                   Xcp = Xcp, SquaredXcp = SquaredXcp)
+            
+            newpartition, newdists = update_partition_dists(opTypesAll[i][0], i, opTypesAll[i][1], partition, partition2nd, partition3rd, dists, distmat,
+                                                           NodePositionsArrayAll, ElasticMatrix, X, SquaredX)
+            #newpartition2, newdists = PartitionData(X, NodePositionsArrayAll[i], MaxBlockSize, SquaredX, TrimmingRadius)
+            #if all(np.isin(np.array(range(NodePositionsArrayAll[i].shape[0])),
+            #               newpartition[newpartition>-1])):
+            
+            #if np.any(newpartition!=newpartition2):
+            #    print('error')
+            
+            
+            nodep, ElasticEnergy, part, dist, mse, ep, rp = PrimitiveElasticGraphEmbedment_feed_partition_dists(X,
+                                                NodePositionsArrayAll[i],
+                                                ElasticMatricesAll[i],
+                                                newpartition, newdists,
+                                                MaxNumberOfIterations, eps,
+                                                Mode=Mode, FinalEnergy=FinalEnergy,
+                                                alpha=alpha,beta=beta,prob=EmbPointProb,
+                                                DisplayWarnings=DisplayWarnings,
+                                                PointWeights=None,
+                                                MaxBlockSize=MaxBlockSize,
+                                                verbose=False,
+                                                TrimmingRadius=TrimmingRadius, SquaredX=SquaredX, Xcp=Xcp, SquaredXcp = SquaredXcp)
 
             if(ElasticEnergy < minEnergy):
                 NewNodePositions = nodep
@@ -620,3 +635,81 @@ def ApplyOptimalGraphGrammarOperation(X,
 
     return dict(NodePositions = NewNodePositions, ElasticMatrix = NewElasticMatrix, 
                 ElasticEnergy = minEnergy, MSE = MSE, EP = EP, RP = RP, AdjustVect = AdjustVect, Dist = Dist)
+
+
+
+
+def update_partition_dists(opType, i, j, partition, partition2nd, partition3rd, dists, distmat, NodePositionsArrayAll, ElasticMatrix, X, SquaredX):
+    ''' update partition and dists depending on the grammar that was applied'''
+    partition_copy = partition.copy()
+    dists_copy = dists.copy()
+    
+    if opType in ['addnode2node', 'bisectedge']:
+        cent = NodePositionsArrayAll[i][-1][:,None]
+        centrLength = sum_squares_2d_array_along_axis1(cent.T)
+        missingdist = SquaredX + centrLength-2*np.dot(X, cent)
+
+        idx_update = ((dists_copy.ravel()>missingdist.ravel())).nonzero()[0]
+        dists_copy[idx_update]=missingdist[idx_update]
+        partition_copy[idx_update]=len(NodePositionsArrayAll[i])-1
+        
+    elif opType == 'removenode':
+        #update partition_copy & dists_copy, removenode
+        Lambda = ElasticMatrix.copy()
+        np.fill_diagonal(Lambda, 0)
+        Connectivities = (Lambda > 0).sum(axis=0)
+
+        #index datapoints that were assigned to the removed node
+        removed_node = np.where(Connectivities==1)[0][j]
+        idx_empty_assignment = np.where(partition_copy.ravel() == removed_node)[0]
+        #update with 2nd closest assignment
+        dists2nd = distmat[np.arange(len(distmat)),partition2nd.ravel()]
+        dists_copy[idx_empty_assignment]=dists2nd[idx_empty_assignment][:,None] 
+        partition_copy[idx_empty_assignment]=partition2nd[idx_empty_assignment]
+        partition_copy[partition_copy>removed_node]-=1
+        
+    elif opType == 'shrinkedge':
+        Min_K = 1
+        ## Shrink edge
+        Lambda = ElasticMatrix.copy()
+        np.fill_diagonal(Lambda, 0)
+        Connectivities = (Lambda > 0).sum(axis=0)
+        # get list of edges
+        start, stop = np.triu(ElasticMatrix, 1).nonzero()
+        Degree = np.hstack((Connectivities[start[None].T],
+                                Connectivities[stop[None].T]))
+        ind_sup1 = np.min(Degree,axis=1) > 1
+        ind_min_K = np.max(Degree,axis=1) >= Min_K
+        ind = ind_sup1 & ind_min_K
+        start = start[ind]
+        stop = stop[ind]
+
+
+
+        cent = NodePositionsArrayAll[i][start[j]][:,None]
+        centrLength = sum_squares_2d_array_along_axis1(cent.T)
+        missingdist = SquaredX + centrLength-2*np.dot(X, cent)
+
+        #index datapoints that were assigned to the merged nodes
+        idx_empty_assignment = np.where((partition_copy.ravel() == start[j]) | (partition_copy.ravel() == stop[j]))[0]
+        newpartition_copy = partition2nd[idx_empty_assignment].ravel()
+        #update with 2nd closest assignment
+        dists2nd = distmat[np.arange(len(distmat)),partition2nd.ravel()]
+        dists_copy[idx_empty_assignment]=dists2nd[idx_empty_assignment][:,None]
+        partition_copy[idx_empty_assignment]=newpartition_copy[:,None]
+
+        #index 2nd closest assignments that were assigned to the merged nodes
+        idx_2nd_closest_is_shrunk_node = np.where((partition_copy.ravel() == start[j]) | (partition_copy.ravel() == start[j]))
+        #update with 3rd closest assignment if 2nd closest assignment is one of the shrunk nodes
+        dists3rd = distmat[np.arange(len(distmat)),partition3rd.ravel()]
+        dists_copy[idx_2nd_closest_is_shrunk_node]=dists3rd[idx_2nd_closest_is_shrunk_node][:,None]
+        partition_copy[idx_2nd_closest_is_shrunk_node] = partition3rd[idx_2nd_closest_is_shrunk_node]
+
+        #update new node assignments
+        idx_update = (dists_copy.ravel()>missingdist.ravel()).nonzero()[0]
+
+        dists_copy[idx_update] = missingdist[idx_update]
+        partition_copy[idx_update] = start[j]
+        partition_copy[partition_copy>stop[j]]-=1
+        
+    return partition_copy, dists_copy
