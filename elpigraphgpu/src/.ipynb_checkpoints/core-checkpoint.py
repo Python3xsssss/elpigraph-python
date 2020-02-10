@@ -57,7 +57,7 @@ def PartitionData(Xcp, NodePositions, MaxBlockSize,SquaredXcp,
 
 
 def PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, SquaredXcp,
-                  TrimmingRadius=np.inf):
+                  TrimmingRadius=float('inf')):
     n = Xcp.shape[0]
     idx_all = cp.arange(n)
     partition = cp.zeros((n, 1), dtype=int)
@@ -77,7 +77,7 @@ def PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, Squa
         if last > n:
             last = n
         # Calculate distances
-        d = SquaredX[i:last] + centrLength-2*cp.dot(Xcp[i:last, ], cent)
+        d = SquaredXcp[i:last] + centrLength-2*cp.dot(Xcp[i:last, ], cent)
         #tmp = d.argmin(axis=1)
         tmp, tmp2, tmp3 = cp.argpartition(d, kth = [0,1,2], axis=1)[:,:3].T
 
@@ -87,10 +87,10 @@ def PartitionData_and_get_Hamerley_bounds(Xcp, NodePositions, MaxBlockSize, Squa
         dists[i:last] = d[cp.arange(d.shape[0]), tmp][:, cp.newaxis]
         
         u[i:last] = dists[i:last]**0.5
-        l[i:last] = (d[idx_all[i:last],tmp2]**0.5)[:,np.newaxis]
+        l[i:last] = (d[idx_all[i:last],tmp2]**0.5)[:,cp.newaxis]
         
-        u[cp.isnan(u)] = 0
-        l[cp.isnan(l)] = 0
+        #u[cp.isnan(u)] = 0
+        #l[cp.isnan(l)] = 0
     # Apply trimming
     if not cp.isinf(TrimmingRadius):
         ind = dists > (TrimmingRadius**2)
