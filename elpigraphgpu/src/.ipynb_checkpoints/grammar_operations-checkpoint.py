@@ -700,7 +700,7 @@ def update_partition_dists(opType, i, j, partition, partition2nd, partition3rd, 
         partition_copy[idx_empty_assignment]=newpartition_copy[:,None]
 
         #index 2nd closest assignments that were assigned to the merged nodes
-        idx_2nd_closest_is_shrunk_node = np.where((partition_copy.ravel() == start[j]) | (partition_copy.ravel() == start[j]))
+        idx_2nd_closest_is_shrunk_node = np.where((partition_copy.ravel() == start[j]) | (partition_copy.ravel() == stop[j]))
         #update with 3rd closest assignment if 2nd closest assignment is one of the shrunk nodes
         dists3rd = distmat[np.arange(len(distmat)),partition3rd.ravel()]
         dists_copy[idx_2nd_closest_is_shrunk_node]=dists3rd[idx_2nd_closest_is_shrunk_node][:,None]
