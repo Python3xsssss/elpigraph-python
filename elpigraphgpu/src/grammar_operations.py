@@ -713,4 +713,9 @@ def update_partition_dists(opType, i, j, partition, partition2nd, partition3rd, 
         partition_copy[idx_update] = start[j]
         partition_copy[partition_copy>stop[j]]-=1
         
+    if not np.isinf(TrimmingRadius):
+        ind = dists_copy > (TrimmingRadius**2)
+        partition_copy[ind] = -1
+        dists_copy[ind] = TrimmingRadius**2      
+        
     return partition_copy, dists_copy
