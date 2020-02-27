@@ -81,9 +81,9 @@ def f_get_star(NodePositions, ElasticMatrix, NodeCenter):
 # Grammar function wrapper ------------------------------------------------
 
 
-def GraphGrammarOperation(X, NodePositions, ElasticMatrix, AdjustVect, Type, partition):
+def GraphGrammarOperation(X, NodePositions, ElasticMatrix, AdjustVect, Type, partition, MaxNumberOfGraphCandidatesDict):
     if Type == "addnode2node":
-        return AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect)
+        return AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, MaxNumberOfGraphCandidatesDict['AddNode2Node'])
     elif Type == "addnode2node_1":
         return AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, Max_K = 1)
     elif Type == "addnode2node_2":
@@ -91,7 +91,7 @@ def GraphGrammarOperation(X, NodePositions, ElasticMatrix, AdjustVect, Type, par
     elif Type == "removenode":
         return RemoveNode(NodePositions, ElasticMatrix, AdjustVect)
     elif Type == "bisectedge":
-        return BisectEdge(NodePositions, ElasticMatrix, AdjustVect)
+        return BisectEdge(NodePositions, ElasticMatrix, AdjustVect, MaxNumberOfGraphCandidatesDict['BisectEdge'])
     elif Type == "bisectedge_3":
         return BisectEdge(NodePositions, ElasticMatrix, AdjustVect, Min_K=3)
     elif Type == "shrinkedge":
@@ -106,7 +106,7 @@ def GraphGrammarOperation(X, NodePositions, ElasticMatrix, AdjustVect, Type, par
 # Grammar functions ------------------------------------------------
 
 
-def AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, Max_K = float('inf')):
+def AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, MaxNumberOfGraphCandidates = float('inf'), Max_K = float('inf')):
     '''
     #' Adds a node to each graph node
     #'
@@ -144,7 +144,10 @@ def AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, Max_K =
 
     MuProt = np.zeros(nNodes+1)
     MuProt[:-1] = Mus
+    
 
+    idx_nodes = np.arange(nNodes)
+    
     
     if not np.isinf(Max_K):
         Degree = np.sum(ElasticMatrix>0,axis=1)
@@ -154,9 +157,15 @@ def AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, Max_K =
             idx_nodes = np.where(Degree <= Max_K)[0]
         else:
             raise ValueError("AddNode2Node impossible with the current parameters!")
-    else:
-        idx_nodes = np.array(range(nNodes))
-        
+    
+     
+    # In case we have limits on the number of candidates
+    if MaxNumberOfGraphCandidates < len(idx_nodes) and np.isinf(Max_K):
+        idx_nodes = np.argsort(assoc)[::-1][:MaxNumberOfGraphCandidates]
+
+    elif MaxNumberOfGraphCandidates < len(idx_nodes) and not(np.isinf(Max_K)):
+        nGraphs = [i for i in np.argsort(assoc)[::-1] if i in idx_nodes]
+        idx_nodes = np.array(nGraphs)[:MaxNumberOfGraphCandidates]
         
     # Put prototypes to corresponding places
     NodePositionsArray = [npProt.copy() for i in range(len(idx_nodes))]
@@ -197,7 +206,7 @@ def AddNode2Node(X, NodePositions, ElasticMatrix, partition, AdjustVect, Max_K =
 
 
 
-def BisectEdge(NodePositions, ElasticMatrix, AdjustVect, Min_K=1):
+def BisectEdge(NodePositions, ElasticMatrix, AdjustVect, MaxNumberOfGraphCandidates=float('inf'), Min_K=1):
     '''
     # % This grammar operation inserts a node inside the middle of each edge
     # % The elasticity of the edges do not change
@@ -221,7 +230,24 @@ def BisectEdge(NodePositions, ElasticMatrix, AdjustVect, Min_K=1):
         EdgDegree = np.max(Degree[Edges],axis=1)
         nGraphs = np.where(EdgDegree >= Min_K)[0]
     else:
-        nGraphs = np.array(range(Edges.shape[0]))
+        nGraphs = np.arange(Edges.shape[0])
+        
+        
+    
+    # In case we have limits on the number of candidates
+    if MaxNumberOfGraphCandidates < len(nGraphs) and not(Min_K>1):
+        nGraphs = nGraphs[:MaxNumberOfGraphCandidates]
+        edge_lengths = np.sum((NodePositions[Edges[:,0],:]-NodePositions[Edges[:,1],:]).T**2,axis=0)
+        inds = np.argsort(edge_lengths)[::-1] 
+        Edges = Edges[inds[nGraphs]]
+        
+    elif MaxNumberOfGraphCandidates < len(nGraphs) and Min_K>1:
+        edge_lengths = np.sum((NodePositions[Edges[:,0],:]-NodePositions[Edges[:,1],:]).T**2,axis=0)
+        inds = np.argsort(edge_lengths)[::-1]
+        nGraphs = inds[np.isin(inds,nGraphs)][:MaxNumberOfGraphCandidates]
+        Edges = Edges[nGraphs]
+
+
     # Create prototypes for new NodePositions, ElasticMatrix and inds
     npProt = np.vstack((NodePositions, np.zeros((1, NodePositions.shape[1]))))
     emProt = np.vstack((np.hstack((ElasticMatrix, np.zeros((nNodes, 1)))),
@@ -385,6 +411,7 @@ def ApplyOptimalGraphGrammarOperation(X,
                                      DisplayWarnings = True,
                                      n_cores = 1,
                                      MinParOp = 20,
+                                     MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                  'BisectEdge':float('inf')},
                                      multiproc_shared_variables = None,
                                      pool = None):
 
@@ -444,7 +471,7 @@ def ApplyOptimalGraphGrammarOperation(X,
 
         NodePositionsArray, ElasticMatrices, AdjustVectArray = (
                 GraphGrammarOperation(X, NodePositions, ElasticMatrix,AdjustVect,
-                                      opTypes[i], partition))
+                                      opTypes[i], partition, MaxNumberOfGraphCandidatesDict))
 
 #         NodePositionsArrayAll = np.concatenate((NodePositionsArrayAll,
 #                                                NodePositionsArray), axis=2)

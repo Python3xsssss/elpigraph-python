@@ -52,7 +52,8 @@ def computeElasticPrincipalCircle(X,
                                  AdjustElasticMatrix_Initial = None,
                                  Lambda_Initial = None, 
                                  Mu_Initial = None,
-                                 DisplayWarnings = False):
+                                 DisplayWarnings = False,
+                                 MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                            'BisectEdge':float('inf')}):
     
     
     '''
@@ -199,7 +200,9 @@ def computeElasticPrincipalCircle(X,
                                              AdjustElasticMatrix = AdjustElasticMatrix,
                                              AdjustElasticMatrix_Initial = AdjustElasticMatrix_Initial,
                                              Lambda_Initial = Lambda_Initial, Mu_Initial = Mu_Initial,
-                                             DisplayWarnings = DisplayWarnings
+                                             DisplayWarnings = DisplayWarnings,
+                                             MaxSteps = MaxSteps,
+                                             MaxNumberOfGraphCandidatesDict = MaxNumberOfGraphCandidatesDict
                                              ))
 
 
@@ -253,7 +256,8 @@ def computeElasticPrincipalTree(X,
                                  AdjustElasticMatrix_Initial = None,
                                  Lambda_Initial = None, 
                                  Mu_Initial = None,
-                                 DisplayWarnings = False):
+                                 DisplayWarnings = False,
+                                 MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                            'BisectEdge':float('inf')}):
     '''
     #' Construct a principal elastic tree
     #'
@@ -394,14 +398,14 @@ def computeElasticPrincipalTree(X,
                                              AdjustElasticMatrix = AdjustElasticMatrix,
                                              AdjustElasticMatrix_Initial = AdjustElasticMatrix_Initial,
                                              Lambda_Initial = Lambda_Initial, Mu_Initial = Mu_Initial,
-                                             DisplayWarnings = DisplayWarnings
+                                             DisplayWarnings = DisplayWarnings,
+                                             MaxSteps = MaxSteps,
+                                             MaxNumberOfGraphCandidatesDict = MaxNumberOfGraphCandidatesDict
                                              ))
 
 
 
 def computeElasticPrincipalCurve(X,
-                                 GrowGrammars,
-                                 ShrinkGrammars,
                                  NumNodes,
                                  NumEdges = float('inf'),
                                  InitNodes = 2,
@@ -450,7 +454,8 @@ def computeElasticPrincipalCurve(X,
                                  AdjustElasticMatrix_Initial = None,
                                  Lambda_Initial = None, 
                                  Mu_Initial = None,
-                                 DisplayWarnings = False):
+                                 DisplayWarnings = False,
+                                 MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                            'BisectEdge':float('inf')}):
     
     ''' 
     #' Construct a princial elastic curve
@@ -593,14 +598,14 @@ def computeElasticPrincipalCurve(X,
                                              AdjustElasticMatrix = AdjustElasticMatrix,
                                              AdjustElasticMatrix_Initial = AdjustElasticMatrix_Initial,
                                              Lambda_Initial = Lambda_Initial, Mu_Initial = Mu_Initial,
-                                             DisplayWarnings = DisplayWarnings
+                                             DisplayWarnings = DisplayWarnings,
+                                             MaxSteps = MaxSteps,
+                                             MaxNumberOfGraphCandidatesDict = MaxNumberOfGraphCandidatesDict
                                              ))
 
 
 
-def finetuneBR(X,
-             GrowGrammars,
-             ShrinkGrammars,
+def fineTuneBR(X,
              NumNodes,
              NumEdges = float('inf'),
              InitNodes = 2,
@@ -812,8 +817,6 @@ def finetuneBR(X,
 
 
 def GrowLeaves(X,
-             GrowGrammars,
-             ShrinkGrammars,
              NumNodes,
              NumEdges = float('inf'),
              InitNodes = 2,
@@ -1064,7 +1067,7 @@ def generateInitialConfiguration(X, Nodes, Configuration = "Line",
 
     if(Configuration == "Circle"):
         # Chain of nodes along the first principal component direction
-        print("Creating a circle in the plane induced buy the 1st and 2nd PCs with", Nodes, "nodes")
+        print("Creating a circle in the plane induced by the 1st and 2nd PCs with", Nodes, "nodes")
         
         if X.shape[1] < 3:
             if CenterDataDensity:

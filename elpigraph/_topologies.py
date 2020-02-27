@@ -52,7 +52,8 @@ def computeElasticPrincipalCircle(X,
                                  AdjustElasticMatrix_Initial = None,
                                  Lambda_Initial = None, 
                                  Mu_Initial = None,
-                                 DisplayWarnings = False):
+                                 DisplayWarnings = False,
+                                 MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                            'BisectEdge':float('inf')}):
     
     
     '''
@@ -200,7 +201,8 @@ def computeElasticPrincipalCircle(X,
                                              AdjustElasticMatrix_Initial = AdjustElasticMatrix_Initial,
                                              Lambda_Initial = Lambda_Initial, Mu_Initial = Mu_Initial,
                                              DisplayWarnings = DisplayWarnings,
-                                             MaxSteps = MaxSteps
+                                             MaxSteps = MaxSteps,
+                                             MaxNumberOfGraphCandidatesDict = MaxNumberOfGraphCandidatesDict
                                              ))
 
 
@@ -254,7 +256,8 @@ def computeElasticPrincipalTree(X,
                                  AdjustElasticMatrix_Initial = None,
                                  Lambda_Initial = None, 
                                  Mu_Initial = None,
-                                 DisplayWarnings = False):
+                                 DisplayWarnings = False,
+                                 MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                            'BisectEdge':float('inf')}):
     '''
     #' Construct a principal elastic tree
     #'
@@ -396,7 +399,8 @@ def computeElasticPrincipalTree(X,
                                              AdjustElasticMatrix_Initial = AdjustElasticMatrix_Initial,
                                              Lambda_Initial = Lambda_Initial, Mu_Initial = Mu_Initial,
                                              DisplayWarnings = DisplayWarnings,
-                                             MaxSteps = MaxSteps
+                                             MaxSteps = MaxSteps,
+                                             MaxNumberOfGraphCandidatesDict = MaxNumberOfGraphCandidatesDict
                                              ))
 
 
@@ -450,7 +454,8 @@ def computeElasticPrincipalCurve(X,
                                  AdjustElasticMatrix_Initial = None,
                                  Lambda_Initial = None, 
                                  Mu_Initial = None,
-                                 DisplayWarnings = False):
+                                 DisplayWarnings = False,
+                                 MaxNumberOfGraphCandidatesDict = {'AddNode2Node':float('inf'),                                            'BisectEdge':float('inf')}):
     
     ''' 
     #' Construct a princial elastic curve
@@ -594,7 +599,8 @@ def computeElasticPrincipalCurve(X,
                                              AdjustElasticMatrix_Initial = AdjustElasticMatrix_Initial,
                                              Lambda_Initial = Lambda_Initial, Mu_Initial = Mu_Initial,
                                              DisplayWarnings = DisplayWarnings,
-                                             MaxSteps = MaxSteps
+                                             MaxSteps = MaxSteps,
+                                             MaxNumberOfGraphCandidatesDict = MaxNumberOfGraphCandidatesDict
                                              ))
 
 
