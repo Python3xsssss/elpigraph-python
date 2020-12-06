@@ -21,6 +21,7 @@ from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsRegressor
 
 from .src.PCA import PCA, TruncPCA, PCA_gpu, TruncSVD_gpu
 from .src.core import PartitionData
@@ -1275,7 +1276,134 @@ def PlotPG(
     ax.set_xlabel(f"PG % var: {TarPGVarPerc[DimToPlot[0]]:.2f}")
     ax.set_ylabel(f"PG % var: {TarPGVarPerc[DimToPlot[1]]:.2f}")
     plt.show()
+    
+# My functions
 
+def ColoredPlotPG(
+    X, PG, 
+    figsize=(15, 10), #figure settings
+    X_color="r", X_cmap="gist_rainbow",  X_alpha=0.6, #data points settings
+    node_color="black", node_size=50, #nodes settings
+    edge_color="black", edge_linewidth=2, edge_alpha=0.6, #edges settings
+    Do_PCA=True, DimToPlot=[0, 1],
+):
+
+    if Do_PCA:
+        # Perform PCA on the nodes
+        mv = PG["NodePositions"].mean(axis=0)
+        data_centered = PG["NodePositions"] - mv
+        vglobal, nodesp, explainedVariances = PCA(data_centered)
+        # Rotate the data using eigenvectors
+        BaseData = np.dot((X - mv), vglobal)
+        DataVarPerc = np.var(BaseData, axis=0) / np.sum(np.var(X, axis=0))
+
+    else:
+        nodesp = PG["NodePositions"]
+        BaseData = X
+        DataVarPerc = np.var(X, axis=0) / np.sum(np.var(X, axis=0))
+
+    f, ax = plt.subplots(1, 1, figsize=figsize)
+    
+    # scatter data
+    if X_color is None:
+        X_color = "r" #Che eto za kostyl'?
+    ax.scatter(
+        BaseData[:, DimToPlot[0]], BaseData[:, DimToPlot[1]], c=X_color, cmap=X_cmap, alpha=X_alpha
+    )
+
+    # scatter nodes
+    ax.scatter(nodesp[:, DimToPlot[0]], nodesp[:, DimToPlot[1]], c=node_color, s=node_size)
+    
+    # plot edges
+    Edges = PG["Edges"][0].T
+    for j in range(Edges.shape[1]):
+        x_coo = np.concatenate((nodesp[Edges[0, j], [0]], nodesp[Edges[1, j], [0]]))
+        y_coo = np.concatenate((nodesp[Edges[0, j], [1]], nodesp[Edges[1, j], [1]]))
+        ax.plot(x_coo, y_coo, c=edge_color, linewidth=edge_linewidth, alpha=edge_alpha)
+
+    #axises
+    if Do_PCA:
+        TarPGVarPerc = explainedVariances / explainedVariances.sum() * 100
+    else:
+        TarPGVarPerc = np.var(PG["NodePositions"], axis=0) / np.sum(
+            np.var(PG["NodePositions"], axis=0)
+        )
+    ax.set_xlabel(f"PG % var: {TarPGVarPerc[DimToPlot[0]]:.2f}")
+    ax.set_ylabel(f"PG % var: {TarPGVarPerc[DimToPlot[1]]:.2f}")
+    
+    mappable = ax.collections[0]
+    f.colorbar(mappable=mappable)
+    plt.show()
+    
+
+def ColoredLabeledPlotPG(
+    X, PG, y, n_neighbors=4,
+    figsize=(15, 10), #figure settings
+    X_color="r", X_cmap="gist_rainbow",  X_alpha=0.6, #data points settings
+    node_color="black", node_size=50, #nodes settings
+    edge_color="black", edge_linewidth=2, edge_alpha=0.6, #edges settings
+    Do_PCA=True, DimToPlot=[0, 1],
+):
+
+    if Do_PCA:
+        # Perform PCA on the nodes
+        mv = PG["NodePositions"].mean(axis=0)
+        data_centered = PG["NodePositions"] - mv
+        vglobal, nodesp, explainedVariances = PCA(data_centered)
+        # Rotate the data using eigenvectors
+        BaseData = np.dot((X - mv), vglobal)
+        DataVarPerc = np.var(BaseData, axis=0) / np.sum(np.var(X, axis=0))
+
+    else:
+        nodesp = PG["NodePositions"]
+        BaseData = X
+        DataVarPerc = np.var(X, axis=0) / np.sum(np.var(X, axis=0))
+
+    f, ax = plt.subplots(1, 1, figsize=figsize)
+    
+    # scatter data
+    if X_color is None:
+        X_color = "r" #Che eto za kostyl'?
+    ax.scatter(
+        BaseData[:, DimToPlot[0]], BaseData[:, DimToPlot[1]], c=X_color, cmap=X_cmap, alpha=X_alpha
+    )
+
+    # scatter nodes
+    ax.scatter(nodesp[:, DimToPlot[0]], nodesp[:, DimToPlot[1]], c=node_color, s=node_size)
+    
+    # compute the mean value of y in areas of nodes
+    model = KNeighborsRegressor(n_neighbors = n_neighbors).fit(BaseData, y)
+    neigh_ind = model.kneighbors(X=nodesp, return_distance=False)
+    mean = []
+    for ix in neigh_ind:
+        tmp = 0
+        for jx in ix:
+            tmp += y[jx]
+        mean.append(int(tmp / n_neighbors))
+        
+    for ix, iy in zip(nodesp, mean):
+        ax.annotate(iy, (ix[DimToPlot[0]], ix[DimToPlot[1]]))
+    
+    # plot edges
+    Edges = PG["Edges"][0].T
+    for j in range(Edges.shape[1]):
+        x_coo = np.concatenate((nodesp[Edges[0, j], [0]], nodesp[Edges[1, j], [0]]))
+        y_coo = np.concatenate((nodesp[Edges[0, j], [1]], nodesp[Edges[1, j], [1]]))
+        ax.plot(x_coo, y_coo, c=edge_color, linewidth=edge_linewidth, alpha=edge_alpha)
+
+    #axises
+    if Do_PCA:
+        TarPGVarPerc = explainedVariances / explainedVariances.sum() * 100
+    else:
+        TarPGVarPerc = np.var(PG["NodePositions"], axis=0) / np.sum(
+            np.var(PG["NodePositions"], axis=0)
+        )
+    ax.set_xlabel(f"PG % var: {TarPGVarPerc[DimToPlot[0]]:.2f}")
+    ax.set_ylabel(f"PG % var: {TarPGVarPerc[DimToPlot[1]]:.2f}")
+    
+    mappable = ax.collections[0]
+    f.colorbar(mappable=mappable)
+    plt.show()
 
 # def old_PlotPG(
 #    X,
