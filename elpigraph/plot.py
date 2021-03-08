@@ -29,6 +29,8 @@ from .src.graphs import ConstructGraph, GetSubGraph, GetBranches
 from .src.distutils import PartialDistance
 from .src.reporting import project_point_onto_graph, project_point_onto_edge
 
+from mpl_toolkits.mplot3d import Axes3D
+
 
 #### ClinTraj gbrancher funcs
 
@@ -1279,6 +1281,102 @@ def PlotPG(
     
 # My functions
 
+def ModifiedPlotPG(
+    X, PG, label_data=None, n_neighbors=4,
+    figsize=(12, 10), #figure settings
+    X_color="r", X_cmap="gist_rainbow",  X_alpha=0.6, #data points settings
+    node_color="black", node_size=50, node_alpha=None, #nodes settings
+    edge_color="black", edge_linewidth=2, edge_alpha=0.6, #edges settings
+    Do_PCA=True, DimToPlot=[0, 1],
+):
+    
+    if Do_PCA:
+        # Perform PCA on the nodes
+        mv = PG["NodePositions"].mean(axis=0)
+        data_centered = PG["NodePositions"] - mv
+        vglobal, nodesp, explainedVariances = PCA(data_centered)
+        # Rotate the data using eigenvectors
+        BaseData = np.dot((X - mv), vglobal) # data after PCA (well, whatever this is...)
+        DataVarPerc = np.var(BaseData, axis=0) / np.sum(np.var(X, axis=0))
+
+    else:
+        nodesp = PG["NodePositions"]
+        BaseData = X
+        DataVarPerc = np.var(X, axis=0) / np.sum(np.var(X, axis=0))
+    
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(projection='3d' if len(DimToPlot) == 3 else None)
+
+    # scatter data
+    if X_color is None:
+        X_color = "r"
+    if (len(DimToPlot) == 3):
+        ax.scatter(
+            BaseData[:, DimToPlot[0]], BaseData[:, DimToPlot[1]], BaseData[:, DimToPlot[2]], 
+            c=X_color, cmap=X_cmap, alpha=X_alpha
+        )
+    else:
+        ax.scatter(
+            BaseData[:, DimToPlot[0]], BaseData[:, DimToPlot[1]], c=X_color, cmap=X_cmap, alpha=X_alpha
+        )
+    
+    # scatter nodes
+    if (len(DimToPlot) == 3):
+        ax.scatter(nodesp[:, DimToPlot[0]], nodesp[:, DimToPlot[1]], nodesp[:, DimToPlot[2]],  
+                   c=node_color, s=node_size, alpha=node_alpha)
+    else:
+        ax.scatter(nodesp[:, DimToPlot[0]], nodesp[:, DimToPlot[1]], c=node_color, s=node_size, alpha=node_alpha)
+
+    Edges = PG["Edges"][0].T
+    
+    # compute the mean value of y in areas of nodes
+    if (label_data is not None):
+        data_list = []
+        node_list = []
+        for dim in DimToPlot:
+            data_list.append(BaseData[:, dim])
+            node_list.append(nodesp[:, dim])
+
+        data_arr = np.array([arr[:] for arr in data_list]).transpose()
+        node_arr = np.array([arr[:] for arr in node_list]).transpose()
+        model = KNeighborsRegressor(n_neighbors=n_neighbors).fit(data_arr, label_data)
+        neigh_ind = model.kneighbors(X=node_arr, return_distance=False)
+        mean = []
+        for ix in neigh_ind:
+            tmp = 0
+            for jx in ix:
+                tmp += label_data[jx]
+            mean.append(int(tmp / n_neighbors))
+
+        for ix, iy in zip(nodesp, mean):
+            ax.annotate(iy, (ix[DimToPlot[0]], ix[DimToPlot[1]]))
+
+    # plot edges
+    for j in range(Edges.shape[1]):
+        x_coo = np.concatenate((nodesp[Edges[0, j], [0]], nodesp[Edges[1, j], [0]]))
+        y_coo = np.concatenate((nodesp[Edges[0, j], [1]], nodesp[Edges[1, j], [1]]))
+        if (len(DimToPlot) == 3):
+            z_coo = np.concatenate((nodesp[Edges[0, j], [2]], nodesp[Edges[1, j], [2]]))
+            ax.plot(x_coo, y_coo, z_coo, c=edge_color, linewidth=edge_linewidth, alpha=edge_alpha)
+        else:
+            ax.plot(x_coo, y_coo, c=edge_color, linewidth=edge_linewidth, alpha=edge_alpha)
+            
+
+    if Do_PCA:
+        TarPGVarPerc = explainedVariances / explainedVariances.sum() * 100
+    else:
+        TarPGVarPerc = np.var(PG["NodePositions"], axis=0) / np.sum(
+            np.var(PG["NodePositions"], axis=0)
+        )
+    ax.set_xlabel(f"PG % var: {TarPGVarPerc[DimToPlot[0]]:.2f}")
+    ax.set_ylabel(f"PG % var: {TarPGVarPerc[DimToPlot[1]]:.2f}")
+    plt.show()
+    
+    # data_2d_points = np.array([BaseData[:, DimToPlot[0]], BaseData[:, DimToPlot[1]], BaseData[:, DimToPlot[2]]]).transpose()
+    # node_2d_points = np.array([nodesp[:, DimToPlot[0]], nodesp[:, DimToPlot[1]], nodesp[:, DimToPlot[2]]]).transpose()
+    # return data_2d_points, node_2d_points
+    
+
 def ColoredPlotPG(
     X, PG, 
     figsize=(15, 10), #figure settings
@@ -1337,14 +1435,14 @@ def ColoredPlotPG(
     
 
 def ColoredLabeledPlotPG(
-    X, PG, y, n_neighbors=4,
+    X, PG, label_data, n_neighbors=4,
     figsize=(15, 10), #figure settings
     X_color="r", X_cmap="gist_rainbow",  X_alpha=0.6, #data points settings
     node_color="black", node_size=50, #nodes settings
     edge_color="black", edge_linewidth=2, edge_alpha=0.6, #edges settings
     Do_PCA=True, DimToPlot=[0, 1],
 ):
-
+    
     if Do_PCA:
         # Perform PCA on the nodes
         mv = PG["NodePositions"].mean(axis=0)
@@ -1363,7 +1461,7 @@ def ColoredLabeledPlotPG(
     
     # scatter data
     if X_color is None:
-        X_color = "r" #Che eto za kostyl'?
+        X_color = "r" 
     ax.scatter(
         BaseData[:, DimToPlot[0]], BaseData[:, DimToPlot[1]], c=X_color, cmap=X_cmap, alpha=X_alpha
     )
@@ -1372,13 +1470,13 @@ def ColoredLabeledPlotPG(
     ax.scatter(nodesp[:, DimToPlot[0]], nodesp[:, DimToPlot[1]], c=node_color, s=node_size)
     
     # compute the mean value of y in areas of nodes
-    model = KNeighborsRegressor(n_neighbors = n_neighbors).fit(BaseData, y)
+    model = KNeighborsRegressor(n_neighbors=n_neighbors).fit(BaseData, label_data)
     neigh_ind = model.kneighbors(X=nodesp, return_distance=False)
     mean = []
     for ix in neigh_ind:
         tmp = 0
         for jx in ix:
-            tmp += y[jx]
+            tmp += label_data[jx]
         mean.append(int(tmp / n_neighbors))
         
     for ix, iy in zip(nodesp, mean):
